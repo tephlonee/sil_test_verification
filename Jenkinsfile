@@ -31,10 +31,17 @@ pipeline {
 
         stage('Static analysis') {
             steps {
-                // Gate: any bug-class finding fails the build
+                // Gate: any finding fails the build and is printed in the console log.
+                // --check-level=exhaustive analyses every branch (the default limits it
+                // and reports that limit as a finding, which would fail the gate).
                 sh '''cppcheck --enable=warning,style,performance,portability --std=c99 \
-                      -Icontroller/include --suppress=missingIncludeSystem \
-                      --error-exitcode=1 --xml --output-file=reports/cppcheck.xml \
+                      --check-level=exhaustive -Icontroller/include \
+                      --suppress=missingIncludeSystem --error-exitcode=1 --template=gcc \
+                      controller/src controller/platform'''
+                // Same analysis as XML, archived as evidence
+                sh '''cppcheck --enable=warning,style,performance,portability --std=c99 \
+                      --check-level=exhaustive -Icontroller/include \
+                      --suppress=missingIncludeSystem --xml --output-file=reports/cppcheck.xml \
                       controller/src controller/platform'''
                 // MISRA C:2012 report only - informs review, does not fail the build yet
                 sh '''cppcheck --addon=misra --std=c99 -Icontroller/include \
