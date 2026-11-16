@@ -1,0 +1,36 @@
+{
+  "_comment": "Owned by the software team. Defines every calibratable parameter, its unit and its allowed range. A calibration file may only choose values inside these limits; changing a limit is a software change and goes through code review.",
+  "schema_version": 1,
+  "parameters": {
+    "dt":                   {"unit": "s",            "min": 0.01,  "max": 0.01,  "type": "float", "description": "Task period. Fixed by the software schedule, not tunable."},
+    "kp":                   {"unit": "N*m/(rad/s)",  "min": 0.5,   "max": 20.0,  "type": "float", "description": "Speed PI proportional gain."},
+    "ki":                   {"unit": "N*m/rad",      "min": 0.0,   "max": 100.0, "type": "float", "description": "Speed PI integral gain."},
+    "integ_limit":          {"unit": "N*m",          "min": 10.0,  "max": 300.0, "type": "float", "description": "Clamp on the PI integrator."},
+    "torque_max":           {"unit": "N*m",          "min": 10.0,  "max": 300.0, "type": "float", "description": "Absolute torque capability."},
+    "derate_start":         {"unit": "degC",         "min": 80.0,  "max": 140.0, "type": "float", "description": "Winding temperature where thermal derating begins."},
+    "derate_end":           {"unit": "degC",         "min": 100.0, "max": 160.0, "type": "float", "description": "Winding temperature where derating reaches its minimum."},
+    "derate_min_frac":      {"unit": "-",            "min": 0.05,  "max": 1.0,   "type": "float", "description": "Torque fraction available at derate_end."},
+    "derate_hyst":          {"unit": "K",            "min": 1.0,   "max": 15.0,  "type": "float", "description": "Hysteresis for leaving DERATED mode."},
+    "temp_critical":        {"unit": "degC",         "min": 120.0, "max": 180.0, "type": "float", "description": "Confirmed temperature above this forces SAFE mode."},
+    "limp_frac":            {"unit": "-",            "min": 0.1,   "max": 0.5,   "type": "float", "description": "Torque fraction in LIMP_HOME mode."},
+    "limit_slew_down":      {"unit": "N*m/s",        "min": 100.0, "max": 5000.0,"type": "float", "description": "Max rate the torque limit may fall."},
+    "limit_slew_up":        {"unit": "N*m/s",        "min": 5.0,   "max": 500.0, "type": "float", "description": "Max rate the torque limit may recover."},
+    "safe_ramp":            {"unit": "N*m/s",        "min": 200.0, "max": 5000.0,"type": "float", "description": "Torque ramp-down rate in SAFE mode."},
+    "temp_min_valid":       {"unit": "degC",         "min": -50.0, "max": -20.0, "type": "float", "description": "Lowest plausible temperature reading."},
+    "temp_max_valid":       {"unit": "degC",         "min": 180.0, "max": 250.0, "type": "float", "description": "Highest plausible temperature reading."},
+    "temp_jump":            {"unit": "K",            "min": 2.0,   "max": 30.0,  "type": "float", "description": "Max plausible step between consecutive readings."},
+    "temp_filt_tau":        {"unit": "s",            "min": 0.05,  "max": 5.0,   "type": "float", "description": "Temperature plausibility filter time constant."},
+    "speed_max_valid":      {"unit": "rad/s",        "min": 500.0, "max": 1200.0,"type": "float", "description": "Highest plausible speed reading."},
+    "speed_jump":           {"unit": "rad/s",        "min": 20.0,  "max": 300.0, "type": "float", "description": "Max plausible step between consecutive readings."},
+    "speed_filt_tau":       {"unit": "s",            "min": 0.01,  "max": 1.0,   "type": "float", "description": "Speed plausibility filter time constant."},
+    "fault_debounce_ticks": {"unit": "ticks",        "min": 2,     "max": 50,    "type": "int",   "description": "Consecutive ticks needed to confirm a fault."}
+  },
+  "rules": [
+    {"expr": "integ_limit <= torque_max",        "why": "The integrator may never hold more torque than the motor can deliver."},
+    {"expr": "derate_end > derate_start",        "why": "The derating curve must have a positive temperature span."},
+    {"expr": "derate_start - derate_hyst > temp_min_valid", "why": "The hysteresis exit point must be a plausible temperature."},
+    {"expr": "temp_critical > derate_end",       "why": "SAFE must trigger only after derating has reached its minimum."},
+    {"expr": "temp_max_valid > temp_critical",   "why": "A critical temperature must still count as a plausible reading."},
+    {"expr": "limit_slew_down > limit_slew_up",  "why": "The limit must fall faster than it recovers (protect first)."}
+  ]
+}

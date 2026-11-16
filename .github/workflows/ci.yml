@@ -1,0 +1,89 @@
+# GitHub Actions CI - same stages as the Jenkinsfile, run on GitHub's servers.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:          # adds a manual "Run workflow" button
+
+permissions:
+  contents: read
+
+concurrency:                  # a new push cancels the older run on the same branch
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sil:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      MPLBACKEND: Agg
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq cppcheck
+          pip install -r requirements.txt
+          mkdir -p reports
+
+      - name: Build controller
+        run: make -C controller clean && make -C controller
+
+      - name: Static analysis (gate)
+        run: |
+          cppcheck --enable=warning,style,performance,portability --std=c99 \
+            --check-level=exhaustive -Icontroller/include \
+            --suppress=missingIncludeSystem --error-exitcode=1 --template=gcc \
+            controller/src controller/platform
+
+      - name: Static analysis (reports)
+        run: |
+          cppcheck --enable=warning,style,performance,portability --std=c99 \
+            --check-level=exhaustive -Icontroller/include \
+            --suppress=missingIncludeSystem --xml --output-file=reports/cppcheck.xml \
+            controller/src controller/platform
+          cppcheck --addon=misra --std=c99 -Icontroller/include \
+            --suppress=missingIncludeSystem \
+            controller/src controller/platform 2> reports/misra.txt || true
+
+      - name: Calibration check
+        run: python -m tools.check_calibration calibration/default.json
+
+      - name: SIL tests
+        run: python -m pytest --junitxml=reports/tests.xml
+
+      - name: Traceability
+        run: python -m tools.trace_report
+
+      - name: Package release
+        run: python -m tools.package_release
+
+      - name: Job summary
+        if: always()
+        run: |
+          if [ -f reports/req_results.json ] && [ ! -f reports/traceability.md ]; then
+            python -m tools.trace_report || true
+          fi
+          cat reports/traceability.md >> "$GITHUB_STEP_SUMMARY" 2>/dev/null \
+            || echo "Tests did not produce results" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sil-evidence-${{ github.sha }}
+          path: |
+            reports/
+            dist/*.zip

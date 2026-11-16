@@ -1,6 +1,6 @@
 // Jenkinsfile - CI pipeline for the motor controller SIL rig.
 // Needs the "Docker Pipeline" plugin. The agent image (ci/Dockerfile) adds cppcheck
-// to python:3.12, which already ships gcc and make.
+// to python:3.12, which already ships gcc, make and git.
 
 pipeline {
     agent { dockerfile { filename 'ci/Dockerfile' } }
@@ -11,14 +11,18 @@ pipeline {
     }
 
     options {
-        timeout(time: 15, unit: 'MINUTES')
+        timeout(time: 20, unit: 'MINUTES')
+    }
+
+    triggers {
+        pollSCM('H/5 * * * *')      // check GitHub for new commits every ~5 minutes
     }
 
     stages {
         stage('Setup') {
             steps {
                 sh 'python -m venv .venv && $PY -m pip install --quiet -r requirements.txt'
-                sh 'mkdir -p reports'
+                sh 'rm -rf reports dist && mkdir -p reports'
             }
         }
 
@@ -50,26 +54,41 @@ pipeline {
             }
         }
 
-        stage('Plant model tests') {
+        stage('Calibration check') {
+            // Every value inside limits.json, every cross-parameter rule satisfied
             steps {
-                sh '$PY -m pytest test_plant.py --junitxml=reports/plant-tests.xml'
+                sh '$PY -m tools.check_calibration calibration/default.json'
             }
         }
 
-        stage('Closed-loop SIL run') {
+        stage('SIL tests') {
+            // Plant physics, CAN interface, and every requirement-linked SIL test
             steps {
-                sh '$PY run_closed_loop.py | tee reports/closed_loop.txt'
-                // Smoke check: the fault scenario must end in SAFE with torque at zero
-                sh 'grep -q "Final mode SAFE" reports/closed_loop.txt'
+                sh '$PY -m pytest --junitxml=reports/tests.xml'
+            }
+        }
+
+        stage('Traceability') {
+            // Gate: every active requirement must be verified by a passing test
+            steps {
+                sh '$PY -m tools.trace_report'
+            }
+        }
+
+        stage('Package release') {
+            steps {
+                sh '$PY -m tools.package_release'
             }
         }
     }
 
     post {
         always {
-            junit allowEmptyResults: true, testResults: 'reports/*.xml'
+            // If tests failed, still build the matrix so the failure is visible per requirement
+            sh '[ -f reports/req_results.json ] && [ ! -f reports/traceability.html ] && $PY -m tools.trace_report || true'
+            junit allowEmptyResults: true, testResults: 'reports/tests.xml'
             archiveArtifacts allowEmptyArchive: true,
-                artifacts: 'controller/build/libmotorctrl.so, *.png, reports/**'
+                artifacts: 'reports/**, dist/*.zip, controller/build/libmotorctrl.so'
         }
     }
 }

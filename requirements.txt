@@ -1,2 +1,6 @@
 pytest>=8
 matplotlib>=3.8
+numpy>=1.26
+pyyaml>=6
+cantools>=39
+python-can>=4.3

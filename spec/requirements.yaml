@@ -1,0 +1,179 @@
+# Software requirements for the motor controller ECU.
+#
+# Each requirement has quantified acceptance criteria. The tests read their
+# thresholds from here, so this file is the single source of truth: changing
+# a limit here changes what the test suite checks.
+#
+# status: active  -> must be verified by at least one passing test
+#         open    -> known gap; linked test is expected to fail until fixed
+
+document: Motor controller ECU - software requirements specification
+id: SRS-MC
+version: 0.2.0
+
+requirements:
+
+  # ---------------------------------------------------------------- Control
+  - id: REQ-001
+    title: Speed step response
+    category: Performance
+    safety: false
+    status: active
+    text: >
+      In NORMAL mode, after a step in speed request from 0 to 300 rad/s, the
+      ECU shall bring motor speed within ±2 % of the request within 1.5 s,
+      with an overshoot of at most 5 %.
+    acceptance: {target_rad_s: 300, band_frac: 0.02, settle_time_s: 1.5, max_overshoot_frac: 0.05}
+
+  - id: REQ-002
+    title: Load disturbance rejection
+    category: Performance
+    safety: false
+    status: active
+    text: >
+      At a steady 300 rad/s, after a 60 N*m step in load torque, motor speed
+      shall drop by no more than 5 % and return within ±2 % within 1.0 s.
+    acceptance: {target_rad_s: 300, load_step_nm: 60, max_dip_frac: 0.05, band_frac: 0.02, recover_time_s: 1.0}
+
+  - id: REQ-003
+    title: Torque command within active limit
+    category: Safety
+    safety: true
+    status: active
+    text: >
+      In every operating mode, the magnitude of the torque command sent to the
+      inverter shall never exceed the active torque limit.
+    acceptance: {tolerance_nm: 0.01}
+
+  # ---------------------------------------------------------------- Thermal
+  - id: REQ-004
+    title: Derating onset
+    category: Thermal protection
+    safety: true
+    status: active
+    text: >
+      When the received winding temperature reaches derate_start, the ECU shall
+      enter DERATED mode within 20 ms.
+    acceptance: {max_delay_s: 0.02}
+
+  - id: REQ-005
+    title: Derating curve
+    category: Thermal protection
+    safety: true
+    status: active
+    text: >
+      In DERATED mode, the torque limit shall not exceed the calibrated
+      derating curve (100 % at derate_start, linear to derate_min_frac at
+      derate_end) by more than 1 % of torque_max.
+    acceptance: {tolerance_frac_of_max: 0.01, settle_s: 0.05}
+
+  - id: REQ-006
+    title: Derating hysteresis
+    category: Thermal protection
+    safety: false
+    status: active
+    text: >
+      The ECU shall leave DERATED mode only when the received winding
+      temperature is below derate_start - derate_hyst, and shall not
+      oscillate between modes while cooling down.
+    acceptance: {max_exits: 1}
+
+  - id: REQ-007
+    title: Winding temperature protection
+    category: Thermal protection
+    safety: true
+    status: active
+    text: >
+      Under sustained maximum speed demand starting from a hot motor
+      (winding 115 °C, housing 100 °C), the true winding temperature shall
+      stay below derate_end for 400 s.
+    acceptance: {duration_s: 400, initial_winding_c: 115, initial_housing_c: 100, speed_req_rad_s: 1100}
+
+  - id: REQ-010
+    title: Over-temperature shutdown
+    category: Thermal protection
+    safety: true
+    status: active
+    text: >
+      When a plausible received temperature is at or above temp_critical, the
+      ECU shall enter SAFE mode within 100 ms, set the OVERTEMP fault, and
+      bring the torque command to zero within 500 ms.
+    acceptance: {max_delay_s: 0.10, torque_zero_s: 0.50}
+
+  # ---------------------------------------------------------------- Sensor faults
+  - id: REQ-008
+    title: Temperature sensor fault reaction
+    category: Diagnostics
+    safety: true
+    status: active
+    text: >
+      When the temperature signal is reported invalid, the ECU shall enter
+      LIMP_HOME within 100 ms, limit torque to limp_frac × torque_max within
+      500 ms, and stay in LIMP_HOME after the signal recovers (latched).
+    acceptance: {max_delay_s: 0.10, limit_time_s: 0.50}
+
+  - id: REQ-009
+    title: Speed sensor fault reaction
+    category: Diagnostics
+    safety: true
+    status: active
+    text: >
+      When the speed signal is reported invalid, the ECU shall enter SAFE mode
+      within 100 ms, bring the torque command to zero within 500 ms, and stay
+      in SAFE mode (latched).
+    acceptance: {max_delay_s: 0.10, torque_zero_s: 0.50}
+
+  - id: REQ-015
+    title: Stuck temperature sensor detection
+    category: Diagnostics
+    safety: true
+    status: open
+    text: >
+      If the received temperature stays within 0.1 K for 5 s while the torque
+      command exceeds 50 % of torque_max, the ECU shall flag a temperature
+      sensor fault and enter LIMP_HOME within 6 s of the sensor sticking.
+    acceptance: {max_delay_s: 6.0}
+
+  # ---------------------------------------------------------------- CAN interface
+  - id: REQ-011
+    title: Inverter message supervision
+    category: Communication
+    safety: true
+    status: active
+    text: >
+      If INV_Status is missing, or its alive counter stops changing, for more
+      than 50 ms, the ECU shall enter SAFE mode within 150 ms of the
+      interruption. Interruptions of 30 ms or less shall not cause a fault.
+    acceptance: {max_delay_s: 0.15, tolerated_gap_s: 0.03}
+
+  - id: REQ-012
+    title: Frame integrity
+    category: Communication
+    safety: true
+    status: active
+    text: >
+      Frames with an invalid checksum shall be discarded and counted. Isolated
+      corrupted frames shall not change the operating mode or set any fault.
+    acceptance: {corrupted_frames: 4}
+
+  - id: REQ-014
+    title: Speed request supervision
+    category: Communication
+    safety: true
+    status: active
+    text: >
+      If VCU_Request is lost, the ECU shall treat the request as zero speed;
+      the motor shall slow to below 10 rad/s within 2 s of the loss.
+    acceptance: {stop_speed_rad_s: 10, stop_time_s: 2.0}
+
+  # ---------------------------------------------------------------- Calibration
+  - id: REQ-013
+    title: Invalid calibration rejection
+    category: Calibration
+    safety: true
+    status: active
+    text: >
+      A calibration that violates limits.json shall be rejected by the CI
+      check and by the ECU at start-up. On rejection the ECU shall stay in
+      SAFE mode with the CAL_INVALID fault set and command zero torque.
+    acceptance: {fault_bit: 0x8000}

@@ -10,8 +10,8 @@ Scenario
 
 import matplotlib.pyplot as plt
 
-from ctrl_sil import MODE_NAMES, MotorController
-from plant import MotorPlant, PlantInputs, SensorFault
+from rig.ctrl_sil import MODE_NAMES, MotorController
+from rig.plant import MotorPlant, PlantInputs, SensorFault
 
 DT, T_END = 0.01, 1500.0
 

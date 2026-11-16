@@ -10,7 +10,7 @@ from __future__ import annotations
 import ctypes as C
 from pathlib import Path
 
-DEFAULT_LIB = Path(__file__).parent / "controller" / "build" / "libmotorctrl.so"
+DEFAULT_LIB = Path(__file__).resolve().parent.parent / "controller" / "build" / "libmotorctrl.so"
 
 MODE_NAMES = {0: "INIT", 1: "NORMAL", 2: "DERATED", 3: "LIMP_HOME", 4: "SAFE"}
 
@@ -48,6 +48,9 @@ class MCCal(C.Structure):
 
 class MotorController:
     def __init__(self, lib_path: Path | str = DEFAULT_LIB) -> None:
+        if not Path(lib_path).exists():
+            raise FileNotFoundError(
+                f"{lib_path} not found - build the controller first: make -C controller")
         self._lib = C.CDLL(str(lib_path))
         self._lib.sil_init.argtypes = [C.POINTER(MCCal)]
         self._lib.sil_init.restype = C.c_uint16

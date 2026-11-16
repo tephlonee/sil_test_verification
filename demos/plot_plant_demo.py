@@ -2,7 +2,7 @@
 
 import matplotlib.pyplot as plt
 
-from plant import MotorPlant, PlantInputs
+from rig.plant import MotorPlant, PlantInputs
 
 DT = 0.01
 plant = MotorPlant(seed=1)

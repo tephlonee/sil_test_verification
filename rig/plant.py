@@ -127,7 +127,11 @@ class MotorPlant:
     # ---- FMI-style interface ------------------------------------------- #
 
     def reset(self, params: PlantParams | None = None, ambient_temp: float = 25.0,
-              seed: int | None = None) -> PlantOutputs:
+              seed: int | None = None,
+              initial_temps: tuple[float, float] | None = None) -> PlantOutputs:
+        """initial_temps = (winding, housing) in degC; defaults to ambient (cold start).
+        A hot start lets thermal tests begin near a threshold instead of simulating
+        many minutes of warm-up."""
         if params is not None:
             self.params = params
         if seed is not None:
@@ -136,9 +140,10 @@ class MotorPlant:
         self.time = 0.0
         self.t_m = 0.0
         self.omega = 0.0
-        self.theta_w = ambient_temp
-        self.theta_h = ambient_temp
-        self.theta_s = ambient_temp
+        theta_w0, theta_h0 = initial_temps if initial_temps is not None else (ambient_temp, ambient_temp)
+        self.theta_w = theta_w0
+        self.theta_h = theta_h0
+        self.theta_s = theta_w0
         self._ambient = ambient_temp
         self._p_loss = 0.0
         self.faults = {"speed": SensorFault(), "temp": SensorFault()}

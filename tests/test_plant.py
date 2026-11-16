@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from plant import (MotorPlant, PlantInputs, PlantParams, SensorFault,
+from rig.plant import (MotorPlant, PlantInputs, PlantParams, SensorFault,
                    steady_state_speed, steady_state_temps)
 
 DT = 0.01  # controller tick

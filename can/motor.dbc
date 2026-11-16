@@ -1,0 +1,54 @@
+VERSION "0.1.0"
+
+
+NS_ :
+
+BS_:
+
+BU_: VCU ECU INV
+
+
+BO_ 256 VCU_Request: 8 VCU
+ SG_ SpeedRequest : 0|16@1- (0.1,0) [-1200|1200] "rad/s" ECU
+ SG_ AliveCounter : 48|4@1+ (1,0) [0|15] "" ECU
+ SG_ Checksum : 56|8@1+ (1,0) [0|255] "" ECU
+
+BO_ 512 INV_Status: 8 INV
+ SG_ MotorSpeed : 0|16@1- (0.1,0) [-1200|1200] "rad/s" ECU
+ SG_ MotorTemp : 16|16@1- (0.1,0) [-40|250] "degC" ECU
+ SG_ SpeedValid : 32|1@1+ (1,0) [0|1] "" ECU
+ SG_ TempValid : 33|1@1+ (1,0) [0|1] "" ECU
+ SG_ AliveCounter : 48|4@1+ (1,0) [0|15] "" ECU
+ SG_ Checksum : 56|8@1+ (1,0) [0|255] "" ECU
+
+BO_ 768 ECU_TorqueCmd: 8 ECU
+ SG_ TorqueRequest : 0|16@1- (0.1,0) [-300|300] "N.m" INV
+ SG_ TorqueLimit : 16|16@1+ (0.1,0) [0|300] "N.m" INV
+ SG_ AliveCounter : 48|4@1+ (1,0) [0|15] "" INV
+ SG_ Checksum : 56|8@1+ (1,0) [0|255] "" INV
+
+BO_ 784 ECU_Status: 8 ECU
+ SG_ Mode : 0|3@1+ (1,0) [0|4] "" VCU
+ SG_ DerateActive : 3|1@1+ (1,0) [0|1] "" VCU
+ SG_ FaultBits : 16|16@1+ (1,0) [0|65535] "" VCU
+ SG_ AliveCounter : 48|4@1+ (1,0) [0|15] "" VCU
+
+
+CM_ BO_ 256 "Speed request from the vehicle control unit (test harness in SIL).";
+CM_ BO_ 512 "Measured motor speed and winding temperature, published by the inverter.";
+CM_ BO_ 768 "Torque request and active torque limit from the motor controller ECU.";
+CM_ BO_ 784 "Motor controller operating mode and latched fault bits.";
+CM_ SG_ 256 AliveCounter "Increments every frame; a frozen counter means the sender is stale.";
+CM_ SG_ 256 Checksum "(sum of bytes 0-6) XOR 0xFF.";
+CM_ SG_ 512 Checksum "(sum of bytes 0-6) XOR 0xFF.";
+CM_ SG_ 768 Checksum "(sum of bytes 0-6) XOR 0xFF.";
+CM_ SG_ 784 FaultBits "Bit layout matches MC_FAULT_* in motor_ctrl.h.";
+
+BA_DEF_ BO_ "GenMsgCycleTime" INT 0 10000;
+BA_DEF_DEF_ "GenMsgCycleTime" 0;
+BA_ "GenMsgCycleTime" BO_ 256 10;
+BA_ "GenMsgCycleTime" BO_ 512 10;
+BA_ "GenMsgCycleTime" BO_ 768 10;
+BA_ "GenMsgCycleTime" BO_ 784 100;
+
+VAL_ 784 Mode 0 "INIT" 1 "NORMAL" 2 "DERATED" 3 "LIMP_HOME" 4 "SAFE" ;

@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "name": "default",
+    "version": "1.0.0",
+    "description": "Baseline calibration for the 250 N*m reference motor.",
+    "author": "Tijani-Ahmed Oboirien"
+  },
+  "values": {
+    "dt": 0.01,
+    "kp": 4.0,
+    "ki": 10.0,
+    "integ_limit": 250.0,
+    "torque_max": 250.0,
+    "derate_start": 120.0,
+    "derate_end": 150.0,
+    "derate_min_frac": 0.2,
+    "derate_hyst": 5.0,
+    "temp_critical": 165.0,
+    "limp_frac": 0.3,
+    "limit_slew_down": 500.0,
+    "limit_slew_up": 50.0,
+    "safe_ramp": 1000.0,
+    "temp_min_valid": -40.0,
+    "temp_max_valid": 220.0,
+    "temp_jump": 10.0,
+    "temp_filt_tau": 0.5,
+    "speed_max_valid": 1200.0,
+    "speed_jump": 100.0,
+    "speed_filt_tau": 0.05,
+    "fault_debounce_ticks": 5
+  }
+}
