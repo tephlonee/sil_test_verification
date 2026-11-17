@@ -177,3 +177,38 @@ requirements:
       check and by the ECU at start-up. On rejection the ECU shall stay in
       SAFE mode with the CAL_INVALID fault set and command zero torque.
     acceptance: {fault_bit: 0x8000}
+
+  # ---------------------------------------------------------------- Input plausibility
+  # REQ-016 and REQ-017 have no accepted test yet. They stay `open` until a test
+  # (drafted by tools/draft_test.py, reviewed with tools/review_draft.py) is accepted;
+  # accepting the draft switches them to `active`.
+  - id: REQ-016
+    title: Implausible speed request
+    category: Communication
+    safety: true
+    status: open
+    text: >
+      A speed request whose magnitude exceeds speed_max_valid shall be treated
+      as a zero speed request: running at 300 rad/s, after the request jumps to
+      ±1500 rad/s the motor shall slow to below 10 rad/s within 2 s, and the
+      speed shall never rise above the speed held before the jump.
+    acceptance: {initial_rad_s: 300, invalid_request_rad_s: 1500, stop_speed_rad_s: 10, stop_time_s: 2.0}
+    notes: >
+      The DBC saturates SpeedRequest at ±1200 rad/s (= speed_max_valid), so an
+      out-of-range request cannot travel over CAN. Verify on the direct
+      transport: run(scenario, on=Rig(transport="direct")).
+
+  - id: REQ-017
+    title: No torque after calibration rejection
+    category: Calibration
+    safety: true
+    status: open
+    text: >
+      When the ECU rejects its calibration at start-up and stays in SAFE mode,
+      the torque limit it reports shall be 0 N*m at every tick for 5 s, even
+      under a 600 rad/s speed request.
+    acceptance: {speed_req_rad_s: 600, observe_s: 5.0, max_torque_limit_nm: 0.0}
+    notes: >
+      An invalid calibration is built from the `cal` fixture, e.g.
+      Rig(calibration={**cal, "kp": 500.0}) (kp outside limits.json), and run
+      with run(scenario, on=that_rig).

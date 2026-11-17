@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import re
 from pathlib import Path
 
@@ -24,7 +25,9 @@ from rig import calibration
 from rig.harness import Rig, git_commit
 
 ROOT = Path(__file__).resolve().parent.parent
-REPORTS = ROOT / "reports"
+# SIL_REPORTS_DIR lets a tool (e.g. the test drafter's pytest gate) run tests without
+# overwriting the real evidence in reports/.
+REPORTS = Path(os.environ.get("SIL_REPORTS_DIR") or ROOT / "reports")
 EVIDENCE = REPORTS / "evidence"
 SPEC = ROOT / "spec" / "requirements.yaml"
 
